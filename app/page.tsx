@@ -3,7 +3,11 @@ import { connection } from "next/server";
 
 import { EstablishmentCard } from "@/components/establishment-card";
 import { ServiceMessage } from "@/components/service-message";
-import { listEstablishments } from "@/lib/external-api/service";
+import {
+  ESTABLISHMENT_PAGE_SIZE,
+  getEstablishmentPage,
+  listEstablishmentCategories,
+} from "@/lib/external-api/service";
 import { getPublicError } from "@/lib/external-api/errors";
 import type { Establishment } from "@/lib/external-api/types";
 import {
@@ -60,9 +64,18 @@ function EstablishmentSection({
 export default async function HomePage() {
   await connection();
 
-  let establishments;
+  let establishments: Establishment[];
+  let establishmentCount = 0;
+  let providerCategories: string[] = [];
   try {
-    establishments = await listEstablishments();
+    const page = await getEstablishmentPage({ limit: ESTABLISHMENT_PAGE_SIZE, offset: 0 });
+    establishments = page.data;
+    establishmentCount = page.count;
+    try {
+      providerCategories = (await listEstablishmentCategories()).map(({ name }) => name);
+    } catch {
+      providerCategories = [];
+    }
   } catch (error) {
     const publicError = getPublicError(error);
     return (
@@ -119,7 +132,9 @@ export default async function HomePage() {
     }
   }
 
-  const categories = [...new Set(establishments.map(({ category }) => category))];
+  const categories = providerCategories.length
+    ? providerCategories
+    : [...new Set(establishments.map(({ category }) => category))];
   const reviewed = establishments.filter((establishment) => (summaries[establishment.id]?.count ?? 0) > 0);
   const popular = [...reviewed]
     .sort((left, right) => (summaries[right.id].count - summaries[left.id].count) ||
@@ -152,7 +167,7 @@ export default async function HomePage() {
               </button>
             </div>
           </form>
-          <p className="hero-count"><strong>{establishments.length}</strong> adresses à découvrir <span>·</span> Une ville, mille façons de l’aimer</p>
+          <p className="hero-count"><strong>{establishmentCount}</strong> adresses à découvrir <span>·</span> Une ville, mille façons de l’aimer</p>
         </div>
         <div className="hero-art" aria-hidden="true">
           <div className="hero-sun" />

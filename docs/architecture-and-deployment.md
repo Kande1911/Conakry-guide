@@ -23,9 +23,9 @@ Pour une exécution serverless, définir `DATABASE_POOL_MAX` à une valeur basse
 
 ### Données externes et données de la plateforme
 
-Pour l’instant, les fiches sont lues directement depuis l’API externe et transformées dans `lib/external-api/mapper.ts`. PostgreSQL ne duplique pas les établissements ; chaque avis garde l’identifiant externe en `text`, ce qui accepte un identifiant documenté comme nombre ou chaîne.
+Les fiches sont lues depuis `GET /api/places/` et leurs détails depuis `GET /api/places/{id}/`, puis transformés dans `lib/external-api/mapper.ts`. Le répertoire charge au plus 50 fiches par appel ; les recherches filtrées passent par `GET /api/search/`. Les résultats sans `place_id` sont écartés, car l’API ne fournit pas de route de détail pour eux. PostgreSQL ne duplique pas les établissements ; chaque avis garde l’identifiant externe en `text`, ce qui accepte un identifiant numérique ou chaîne.
 
-Ce choix respecte la documentation reçue : elle ne précise ni pagination fournisseur, ni autorisation de cache ou de réplication. La contrepartie est que l’affichage des établissements dépend de la disponibilité de l’API. Un cache ou un index local pourra être ajouté après confirmation des droits et règles de rafraîchissement.
+L’affichage dépend de la disponibilité de l’API. Les réponses publiques sont mises en cache par Next.js pendant `EXTERNAL_API_REVALIDATE_SECONDS` (300 secondes par défaut, 0 pour désactiver le cache) afin de limiter les appels répétés pendant le chargement des pages. Ajuster cette durée aux règles de fraîcheur et d’utilisation du fournisseur.
 
 Les champs de fiche actuellement utilisés sont `id`, `nom`, `categorie`, les URLs d’images, `description`, `adresse` et les coordonnées. Seuls l’identifiant, le nom et la catégorie sont exigés par le mapper ; les informations illustratives, horaires, téléphones et liens sociaux ne sont pas supposés présents.
 
@@ -55,14 +55,15 @@ Les lectures publiques ne retournent que les avis `published`. Les agrégats (mo
 - `GET /api/admin/reviews?status=hidden&page=1` et `PATCH /api/admin/reviews/:id` : modération avec autorisation serveur.
 - `GET /api/health` : vérifie la disponibilité de PostgreSQL sans retourner de détail de connexion.
 
-La pagination des avis et le bouton « afficher plus » sont internes ; aucun paramètre n’est envoyé à l’API fournisseur, car elle ne documente pas de pagination. La recherche et les filtres d’établissement portent sur les données reçues : nom, catégorie, adresse et description.
+La page de répertoire charge les fiches par lots fournisseur `limit` / `offset` (50 maximum par appel). Le bouton « afficher plus » révèle 12 cartes à la fois puis charge le lot suivant ; la recherche textuelle, la catégorie et la note minimale sont transmises à l’endpoint de recherche. Les avis restent paginés en interne par 20.
 
 ## Configuration
 
 Copier `.env.example` vers `.env` et renseigner localement :
 
-- `EXTERNAL_API_URL` : URL réelle de la collection communiquée par le fournisseur. `api.exemple.com` dans le document est une valeur illustrative, pas une adresse de production.
+- `EXTERNAL_API_URL` : URL de la collection, par exemple `https://maps.djengoo.com/api/places/`.
 - `EXTERNAL_API_AUTH_HEADER` et `EXTERNAL_API_AUTH_VALUE` : seulement si le fournisseur confirme le mécanisme exact.
+- `EXTERNAL_API_REVALIDATE_SECONDS` : durée de cache des fiches publiques (300 secondes par défaut ; 0 le désactive).
 - `DATABASE_URL` : chaîne privée vers PostgreSQL 13 ou supérieur (`gen_random_uuid()` est utilisé par la migration).
 - `BETTER_AUTH_SECRET` : valeur aléatoire d’au moins 32 caractères.
 - `BETTER_AUTH_URL` et `SITE_URL` : origine publique exacte de l’application ; HTTPS en production.

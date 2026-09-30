@@ -5,6 +5,7 @@ import { ExternalApiError } from "./errors";
 interface ExternalApiConfig {
   collectionUrl: URL;
   timeoutMs: number;
+  revalidateSeconds: number;
   authHeader?: string;
   authValue?: string;
 }
@@ -59,5 +60,15 @@ export function getExternalApiConfig(): ExternalApiConfig {
     );
   }
 
-  return { collectionUrl, timeoutMs, authHeader, authValue };
+  if (!collectionUrl.pathname.endsWith("/")) collectionUrl.pathname += "/";
+
+  const revalidateSeconds = Number(process.env.EXTERNAL_API_REVALIDATE_SECONDS ?? "300");
+  if (!Number.isInteger(revalidateSeconds) || revalidateSeconds < 0 || revalidateSeconds > 86_400) {
+    throw new ExternalApiError(
+      "La configuration de mise en cache du service est invalide.",
+      503,
+    );
+  }
+
+  return { collectionUrl, timeoutMs, revalidateSeconds, authHeader, authValue };
 }

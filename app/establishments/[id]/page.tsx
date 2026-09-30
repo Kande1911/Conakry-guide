@@ -41,16 +41,18 @@ export default async function EstablishmentDetailPage({ params }: PageProps) {
     );
   }
 
-  const images: GalleryImage[] = [
+  const galleryImages: GalleryImage[] = [
     ...(establishment.mainImage ? [{ src: establishment.mainImage, label: "Photo principale", alt: establishment.name }] : []),
     ...establishment.secondaryImages.map((src, index) => ({ src, label: `Photo ${index + 1}`, alt: `${establishment.name}, photo ${index + 1}` })),
     ...establishment.menuImages.map((src, index) => ({ src, label: `Menu ${index + 1}`, alt: `Menu de ${establishment.name}, photo ${index + 1}` })),
   ];
+  const images = galleryImages.filter((image, index) => galleryImages.findIndex(({ src }) => src === image.src) === index);
   const mapsUrl = establishment.coordinates
     ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${establishment.coordinates.lat},${establishment.coordinates.lng}`)}`
-    : establishment.address
-      ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${establishment.name} ${establishment.address} Conakry`)}`
-      : null;
+      : establishment.address
+        ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${establishment.name} ${establishment.address} Conakry`)}`
+        : null;
+  const phoneHref = establishment.phone?.replace(/[^\d+]/g, "") || null;
 
   return (
     <main className="detail-container">
@@ -78,6 +80,9 @@ export default async function EstablishmentDetailPage({ params }: PageProps) {
           <div className="eyebrow">INFOS PRATIQUES</div>
           {establishment.address ? <div className="detail-info-item"><span className="detail-info-icon" aria-hidden="true">⌖</span><div><strong>Adresse</strong><p>{establishment.address}</p></div></div> : null}
           {establishment.coordinates ? <div className="detail-info-item"><span className="detail-info-icon" aria-hidden="true">◎</span><div><strong>Coordonnées</strong><p>{establishment.coordinates.lat.toFixed(5)}, {establishment.coordinates.lng.toFixed(5)}</p></div></div> : null}
+          {phoneHref ? <div className="detail-info-item"><span className="detail-info-icon" aria-hidden="true">☎</span><div><strong>Téléphone</strong><p><a href={`tel:${phoneHref}`}>{establishment.phone}</a></p></div></div> : null}
+          {establishment.email ? <div className="detail-info-item"><span className="detail-info-icon" aria-hidden="true">@</span><div><strong>E-mail</strong><p><a href={`mailto:${encodeURIComponent(establishment.email)}`}>{establishment.email}</a></p></div></div> : null}
+          {establishment.website ? <div className="detail-info-item"><span className="detail-info-icon" aria-hidden="true">↗</span><div><strong>Site web</strong><p><a href={establishment.website} rel="noreferrer" target="_blank">Visiter le site</a></p></div></div> : null}
           {mapsUrl ? <a className="map-link" href={mapsUrl} rel="noreferrer" target="_blank">Voir sur la carte <span aria-hidden="true">↗</span></a> : <p className="detail-description-muted">Emplacement non renseigné.</p>}
         </aside>
       </div>

@@ -3,12 +3,18 @@ import "server-only";
 import { getExternalApiConfig } from "./config";
 import { ExternalApiError } from "./errors";
 
-function endpointUrl(id?: string): URL {
+function endpointUrl(id?: string, limit?: number, offset?: number): URL {
   const { collectionUrl } = getExternalApiConfig();
-  if (id === undefined) return collectionUrl;
+  if (id !== undefined) return new URL(`${encodeURIComponent(id)}/`, collectionUrl);
 
-  const collectionPath = collectionUrl.toString().replace(/\/$/, "");
-  return new URL(`${collectionPath}/${encodeURIComponent(id)}`);
+  const url = new URL(collectionUrl);
+  if (limit !== undefined) url.searchParams.set("limit", String(limit));
+  if (offset !== undefined) url.searchParams.set("offset", String(offset));
+  return url;
+}
+
+function relatedEndpoint(name: "search" | "categories"): URL {
+  return new URL(`../${name}/`, getExternalApiConfig().collectionUrl);
 }
 
 async function requestJson(url: URL, missingIsNotFound: boolean): Promise<unknown> {
@@ -22,10 +28,12 @@ async function requestJson(url: URL, missingIsNotFound: boolean): Promise<unknow
   try {
     response = await fetch(url, {
       headers,
-      cache: "no-store",
       // Do not forward a configured credential if the upstream redirects.
       redirect: "manual",
       signal: AbortSignal.timeout(config.timeoutMs),
+      ...(config.revalidateSeconds > 0
+        ? { next: { revalidate: config.revalidateSeconds } }
+        : { cache: "no-store" as const }),
     });
   } catch (error) {
     if (error instanceof Error && error.name === "TimeoutError") {
@@ -62,8 +70,34 @@ async function requestJson(url: URL, missingIsNotFound: boolean): Promise<unknow
   }
 }
 
-export async function fetchExternalEstablishmentList(): Promise<unknown> {
-  return requestJson(endpointUrl(), false);
+export async function fetchExternalEstablishmentList(limit: number, offset: number): Promise<unknown> {
+  return requestJson(endpointUrl(undefined, limit, offset), false);
+}
+
+export async function fetchExternalEstablishmentSearch({
+  query,
+  category,
+  minRating,
+  limit,
+  offset,
+}: {
+  query?: string;
+  category?: string;
+  minRating?: number;
+  limit: number;
+  offset: number;
+}): Promise<unknown> {
+  const url = relatedEndpoint("search");
+  if (query) url.searchParams.set("q", query);
+  if (category) url.searchParams.set("category", category);
+  if (minRating !== undefined) url.searchParams.set("min_rating", String(minRating));
+  url.searchParams.set("limit", String(limit));
+  url.searchParams.set("offset", String(offset));
+  return requestJson(url, false);
+}
+
+export async function fetchExternalEstablishmentCategories(): Promise<unknown> {
+  return requestJson(relatedEndpoint("categories"), false);
 }
 
 export async function fetchExternalEstablishment(id: string): Promise<unknown> {

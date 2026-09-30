@@ -7,10 +7,12 @@ Voir [docs/architecture-and-deployment.md](docs/architecture-and-deployment.md) 
 ## Configuration locale
 
 1. Copier `.env.example` vers `.env`.
-2. Renseigner `EXTERNAL_API_URL` uniquement avec l’URL réelle communiquée par le fournisseur. La valeur illustrative `api.exemple.com` n’est pas un endpoint de production.
+2. Configurer `EXTERNAL_API_URL=https://maps.djengoo.com/api/places/` dans `.env.local`. Pour cette API, ajouter `EXTERNAL_API_AUTH_HEADER=X-API-KEY` et sa valeur privée dans `.env.local`; ne jamais inscrire la clé dans le dépôt.
 3. Renseigner `DATABASE_URL`, `BETTER_AUTH_SECRET` (au moins 32 caractères aléatoires), `BETTER_AUTH_URL` et `SITE_URL`. À la création par e-mail, le mot de passe doit contenir au moins 8 caractères.
 4. Appliquer les migrations avec `npm run db:migrate`.
 5. Démarrer l’application avec `npm run dev`.
+
+La liste est chargée par lots de 50 au fil de la navigation ; les recherches et filtres utilisent l’endpoint de recherche du fournisseur. `EXTERNAL_API_REVALIDATE_SECONDS` règle le cache des données publiques (300 secondes par défaut).
 
 Pour activer « Continuer avec Google » sur les pages de connexion et de création de compte, ajoutez `GOOGLE_CLIENT_ID` et `GOOGLE_CLIENT_SECRET` dans `.env`. Dans Google Cloud Console, créez un identifiant OAuth de type application Web et autorisez `http://localhost:3000/api/auth/callback/google` en local ainsi que `https://votre-domaine/api/auth/callback/google` en production. Le bouton apparaît lorsque les deux variables sont renseignées. Gardez le secret OAuth côté serveur.
 

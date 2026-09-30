@@ -381,9 +381,8 @@ button { color: inherit; }
   .breadcrumbs { margin-bottom: 23px; font-size: 9px; }
   .detail-heading { align-items: start; flex-direction: column; gap: 13px; }
   .detail-heading h1 { font-size: 39px; }
-  .detail-gallery { height: 280px; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: 1.2fr 1fr; gap: 6px; }
+  .detail-gallery { height: auto; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: none; grid-auto-rows: 112px; gap: 6px; }
   .gallery-tile-1 { grid-column: span 2; grid-row: span 1; }
-  .gallery-tile:nth-child(n+4) { display: none; }
   .detail-gallery-empty { height: 180px; }
   .gallery-modal { padding: 50px 18px; }
   .gallery-close { top: 12px; right: 12px; }

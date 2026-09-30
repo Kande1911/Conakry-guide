@@ -3,7 +3,11 @@ import { connection } from "next/server";
 
 import { EstablishmentBrowser } from "@/components/establishment-browser";
 import { ServiceMessage } from "@/components/service-message";
-import { listEstablishments } from "@/lib/external-api/service";
+import {
+  ESTABLISHMENT_PAGE_SIZE,
+  getEstablishmentPage,
+  listEstablishmentCategories,
+} from "@/lib/external-api/service";
 import { getPublicError } from "@/lib/external-api/errors";
 import { getRecentlyReviewedEstablishmentIds, getReviewSummaries } from "@/lib/reviews/service";
 
@@ -19,10 +23,20 @@ export const metadata = {
 export default async function EstablishmentsPage({ searchParams }: PageProps) {
   await connection();
   const params = await searchParams;
-  let establishments;
+  let page;
 
   try {
-    establishments = await listEstablishments();
+    const minRating = params.minRating === "3" || params.minRating === "4"
+      ? Number(params.minRating)
+      : undefined;
+    page = await getEstablishmentPage({
+      query: params.q,
+      category: params.category,
+      location: params.location,
+      minRating,
+      limit: ESTABLISHMENT_PAGE_SIZE,
+      offset: 0,
+    });
   } catch (error) {
     const publicError = getPublicError(error);
     return (
@@ -34,20 +48,33 @@ export default async function EstablishmentsPage({ searchParams }: PageProps) {
     );
   }
 
+  let categories;
+  try {
+    categories = await listEstablishmentCategories();
+  } catch {
+    categories = [...new Set(page.data.map(({ category }) => category))]
+      .map((name) => ({ id: name, name, slug: name }));
+  }
+
   let summaries = {};
   let recentlyReviewedIds: string[] = [];
-  if (process.env.DATABASE_URL && establishments.length) {
+  if (process.env.DATABASE_URL && page.data.length) {
     try {
-      const ids = establishments.map(({ id }) => id);
+      const ids = page.data.map(({ id }) => id);
       [summaries, recentlyReviewedIds] = await Promise.all([
         getReviewSummaries(ids),
-        getRecentlyReviewedEstablishmentIds(ids, establishments.length),
+        getRecentlyReviewedEstablishmentIds(ids, ids.length),
       ]);
     } catch {
       summaries = {};
       recentlyReviewedIds = [];
     }
   }
+
+  const requestedCategory = params.category ?? "";
+  const initialCategory = categories.find(
+    ({ name, slug }) => name === requestedCategory || slug === requestedCategory,
+  )?.slug ?? requestedCategory;
 
   return (
     <main className="page-container directory-page">
@@ -61,11 +88,18 @@ export default async function EstablishmentsPage({ searchParams }: PageProps) {
       </div>
 
       <EstablishmentBrowser
-        establishments={establishments}
+        establishments={page.data}
         summaries={summaries}
         recentEstablishmentIds={recentlyReviewedIds}
+        categories={categories}
+        pagination={{
+          count: page.count,
+          limit: page.limit,
+          offset: page.offset,
+          hasMore: page.offset + page.limit < page.count,
+        }}
         initialQuery={params.q ?? ""}
-        initialCategory={params.category ?? ""}
+        initialCategory={initialCategory}
         initialLocation={params.location ?? ""}
         initialSort={params.sort ?? "relevance"}
         initialMinRating={params.minRating ?? ""}
